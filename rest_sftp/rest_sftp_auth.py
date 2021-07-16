@@ -1,26 +1,41 @@
 import json
+import logging
+import time
 
 import requests
 from requests.auth import HTTPBasicAuth
 
 
-class BasicAuth:
-    def __init__(self, username, password):
+class Auth:
+    def __init__(self):
+        pass
+
+    def get_auth(self):
+        pass
+
+
+class BasicAuth(Auth):
+    def __init__(self, username: str, password: str):
+        super().__init__()
         self.username = username
         self.password = password
 
-    def get_auth(self):
+    def get_auth(self) -> HTTPBasicAuth:
         return HTTPBasicAuth(self.username, self.password)
 
 
-class OAuth2:
-    def __init__(self, uri, realm, client_id, client_secret, username=None, password=None):
+class OAuth2(Auth):
+    def __init__(self, uri: str, realm: str, client_id: str, client_secret: str, username: str = None,
+                 password: str = None):
+        super().__init__()
         self.uri = uri
         self.realm = realm
         self.client_id = client_id
         self.client_secret = client_secret
         self.username = username
         self.password = password
+        self.access_token = None
+        self.expires_in = 0
 
     def _get_payload(self):
         payload = {
@@ -38,6 +53,14 @@ class OAuth2:
         return payload
 
     def get_auth(self):
+        if self.access_token is None or time.time() > self.expires_in:
+            logging.info("get a new token")
+            r = self._get_auth()
+            self.access_token = r["access_token"]
+            self.expires_in = int(time.time()) + (r["expires_in"] * 10)
+        return self.access_token
+
+    def _get_auth(self):
         url = f"{self.uri}/auth/realms/{self.realm}/protocol/openid-connect/token"
 
         payload = self._get_payload()
@@ -49,4 +72,4 @@ class OAuth2:
         response = requests.post(url, headers=headers, data=payload)
 
         response_json = json.loads(response.text)
-        return response_json["access_token"]
+        return response_json

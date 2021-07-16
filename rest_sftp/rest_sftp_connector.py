@@ -2,12 +2,13 @@ import json
 import logging
 
 import requests
+from requests import Response
 from requests_toolbelt import MultipartEncoder
 
-from rest_sftp.rest_sftp_auth import OAuth2
+from rest_sftp.rest_sftp_auth import OAuth2, Auth
 
 
-def _get_headers(auth, headers=None):
+def _get_headers(auth: Auth, headers: object = None) -> object:
     if headers is None:
         return {"Authorization": f"Bearer {auth.get_auth()}"}
     else:
@@ -15,20 +16,28 @@ def _get_headers(auth, headers=None):
         return headers
 
 
-def _download_file(r, local_path):
+def _download_file(r: Response, local_path: str):
     r.raise_for_status()
     with open(local_path, "wb") as f:
         for chunk in r.iter_content(chunk_size=8192):
             f.write(chunk)
 
 
+def _check_response(r: Response, method_name: str, params: tuple):
+    if r.status_code >= 400:
+        logging.error(f"{method_name}: {params} - {r.status_code} - {r.text}")
+        raise Exception(r.text)
+    else:
+        logging.debug(f"{method_name}: {params} - {r.status_code} - {r.text}")
+
+
 class RestSFTP:
-    def __init__(self, uri, auth):
+    def __init__(self, uri: str, auth: Auth):
         self.uri = uri
         self.auth = auth
 
-    def read_tree(self, folder="/", recursive_enabled=False, ignore_hidden_file_enabled=True,
-                  absolute_path_enabled=False):
+    def read_tree(self, folder: str = "/", recursive_enabled: bool = False, ignore_hidden_file_enabled: bool = True,
+                  absolute_path_enabled: bool = False) -> object:
         url = f"{self.uri}/api/tree"
         params = {
             "folder": folder,
@@ -42,10 +51,10 @@ class RestSFTP:
             r = requests.get(url, headers=_get_headers(self.auth), params=params)
         else:
             r = requests.get(url, auth=self.auth.get_auth(), params=params)
-        logging.debug(f"read_tree: {params} - {r.status_code}")
+        _check_response(r, "read_tree", (folder, recursive_enabled, ignore_hidden_file_enabled, absolute_path_enabled))
         return json.loads(r.text)
 
-    def upload_file_url(self, url, filepath, filename):
+    def upload_file_url(self, url: str, filepath: str, filename: str):
         rest_sftp_url = f"{self.uri}/api/commands/url"
 
         if isinstance(self.auth, OAuth2):
@@ -54,23 +63,23 @@ class RestSFTP:
         else:
             r = requests.post(rest_sftp_url, auth=self.auth.get_auth(),
                               data={"url": url, "filepath": filepath, "filename": filename})
-        logging.debug(f"upload_file_url: {url, filepath, filename} - {r.status_code}")
+        _check_response(r, "upload_file_url", (url, filepath, filename))
 
-    def download_file(self, file_paths, local_path, zip_enabled):
+    def download_file(self, file_paths: str, local_path: str, zip_enabled: bool):
         url = f"{self.uri}/api/commands"
 
         if isinstance(self.auth, OAuth2):
             with requests.get(url, headers=_get_headers(self.auth),
                               params={"file_paths": file_paths, "zip_enabled": zip_enabled}) as r:
-                logging.debug(f"download_file: {file_paths, local_path, zip_enabled} - {r.status_code}")
                 _download_file(r, local_path)
+                _check_response(r, "download_file", (file_paths, local_path, zip_enabled))
         else:
             with requests.get(url, auth=self.auth.get_auth(),
                               params={"file_paths": file_paths, "zip_enabled": zip_enabled}) as r:
-                logging.debug(f"download_file: {file_paths, local_path, zip_enabled} - {r.status_code}")
                 _download_file(r, local_path)
+                _check_response(r, "download_file", (file_paths, local_path, zip_enabled))
 
-    def upload_file(self, dst_folder_path, filename, local_path):
+    def upload_file(self, dst_folder_path: str, filename: str, local_path: str):
         data = MultipartEncoder(
             fields={"filepath": dst_folder_path, "f": (filename, open(local_path, "rb"), "text/plain")})
         url = f"{self.uri}/api/commands"
@@ -82,9 +91,9 @@ class RestSFTP:
         else:
             r = requests.post(url, auth=self.auth.get_auth(), data=data,
                               headers={"Content-Type": data.content_type})
-        logging.debug(f"upload_file: {dst_folder_path, filename, local_path} - {r.status_code}")
+        _check_response(r, "upload_file", (dst_folder_path, filename, local_path))
 
-    def delete_file(self, filepath, move_to_bin_enabled):
+    def delete_file(self, filepath: str, move_to_bin_enabled: bool):
         params = {"filepath": filepath, "move_to_bin_enabled": move_to_bin_enabled}
         url = f"{self.uri}/api/commands"
         logging.debug(f"delete_file: {filepath, move_to_bin_enabled}")
@@ -92,9 +101,9 @@ class RestSFTP:
             r = requests.delete(url, headers=_get_headers(self.auth), params=params)
         else:
             r = requests.delete(url, auth=self.auth.get_auth(), params=params)
-        logging.debug(f"delete_file: {filepath, move_to_bin_enabled} - {r.status_code}")
+        _check_response(r, "delete_file", (filepath, move_to_bin_enabled))
 
-    def move_file(self, filepath_from, filepath_to):
+    def move_file(self, filepath_from: str, filepath_to: str):
         data = {"filepath_from": filepath_from, "filepath_to": filepath_to}
         url = f"{self.uri}/api/commands"
 
@@ -103,4 +112,4 @@ class RestSFTP:
             r = requests.put(url, data=data, headers=_get_headers(self.auth))
         else:
             r = requests.put(url, auth=self.auth.get_auth(), data=data)
-        logging.debug(f"move_file: {filepath_from, filepath_to} - {r.status_code}")
+        _check_response(r, "move_file", (filepath_from, filepath_to))
