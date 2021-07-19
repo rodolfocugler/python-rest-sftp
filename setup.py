@@ -6,7 +6,7 @@ with io.open("README.md", "rt", encoding="utf8") as f:
     readme = f.read()
 
 setup(
-    name="restsftp",
+    name="rest-sftp",
     version="1.0.0",
     url="https://github.com/rodolfocugler/python-rest-sftp",
     license="Apache 2.0",
