@@ -14,11 +14,12 @@ setup(
     maintainer_email="rodolfocugler@outlook.com",
     description="Rest API module to connect in a Rest-SFTP server",
     long_description=readme,
-    packages=['rest_sftp'],
+    packages=["rest_sftp"],
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'setuptools~=41.2.0',
-        'requests~=2.25.1',
+        "setuptools~=41.2.0",
+        "requests~=2.25.1",
+        "requests-toolbelt==0.9.1"
     ]
 )
