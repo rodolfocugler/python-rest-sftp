@@ -1,6 +1,5 @@
 import io
 
-from setuptools import find_packages
 from setuptools import setup
 
 with io.open("README.md", "rt", encoding="utf8") as f:
@@ -15,7 +14,11 @@ setup(
     maintainer_email="rodolfocugler@outlook.com",
     description="Rest API module to connect in a Rest-SFTP server",
     long_description=readme,
-    packages=find_packages(),
+    packages=['rest_sftp'],
     include_package_data=True,
-    zip_safe=False
+    zip_safe=False,
+    install_requires=[
+        'setuptools~=41.2.0',
+        'requests~=2.25.1',
+    ]
 )
