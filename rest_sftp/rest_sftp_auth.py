@@ -57,7 +57,7 @@ class OAuth2(Auth):
             logging.info("get a new token")
             r = self._get_auth()
             self.access_token = r["access_token"]
-            self.expires_in = int(time.time()) + (r["expires_in"] * 10)
+            self.expires_in = int(time.time()) + r["expires_in"]
         return self.access_token
 
     def _get_auth(self):
