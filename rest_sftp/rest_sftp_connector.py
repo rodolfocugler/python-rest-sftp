@@ -23,7 +23,7 @@ def _download_file(r: Response, local_path: str):
             f.write(chunk)
 
 
-def _check_response(r: Response, method_name: str, params: tuple):
+def _check_response(r: Response, method_name: str, params):
     if r.status_code >= 400:
         logging.error(f"{method_name}: {params} - {r.status_code} - {r.text}")
         raise Exception(r.text)
@@ -64,6 +64,21 @@ class RestSFTP:
             r = requests.post(rest_sftp_url, auth=self.auth.get_auth(),
                               data={"url": url, "filepath": filepath, "filename": filename})
         _check_response(r, "upload_file_url", (url, filepath, filename))
+
+    def download_content(self, file_path: str, dtype=None):
+        url = f"{self.uri}/api/commands"
+
+        if isinstance(self.auth, OAuth2):
+            r = requests.get(url, headers=_get_headers(self.auth),
+                             params={"file_paths": file_path, "zip_enabled": False})
+        else:
+            r = requests.get(url, auth=self.auth.get_auth(),
+                             params={"file_paths": file_path, "zip_enabled": False})
+        _check_response(r, "download_file", file_path)
+
+        if dtype == str:
+            return r.text
+        return r.content
 
     def download_file(self, file_paths: str, local_path: str, zip_enabled: bool):
         url = f"{self.uri}/api/commands"
