@@ -26,11 +26,12 @@ def _download_file(r: Response, local_path: str, chunked: bool):
 
 
 def _check_response(r: Response, method_name: str, params):
+    content = r.text if len(r.content) < 1024 else None
     if r.status_code >= 400:
-        logging.error(f"{method_name}: {params} - {r.status_code} - {r.text}")
-        raise Exception(r.text)
+        logging.error(f"{method_name}: {params} - {r.status_code} - {content}")
+        raise Exception(content)
     else:
-        logging.debug(f"{method_name}: {params} - {r.status_code} - {r.text}")
+        logging.debug(f"{method_name}: {params} - {r.status_code} - {content}")
 
 
 class RestSFTP:
