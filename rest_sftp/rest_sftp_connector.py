@@ -4,7 +4,6 @@ import logging
 import requests
 from requests import Response
 from requests_toolbelt import MultipartEncoder
-
 from rest_sftp.rest_sftp_auth import OAuth2, Auth
 
 
@@ -16,11 +15,14 @@ def _get_headers(auth: Auth, headers: object = None) -> object:
         return headers
 
 
-def _download_file(r: Response, local_path: str):
+def _download_file(r: Response, local_path: str, chunked: bool):
     r.raise_for_status()
     with open(local_path, "wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            f.write(chunk)
+        if chunked:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        else:
+            f.write(r.content)
 
 
 def _check_response(r: Response, method_name: str, params):
@@ -80,18 +82,18 @@ class RestSFTP:
             return r.text
         return r.content
 
-    def download_file(self, file_paths: str, local_path: str, zip_enabled: bool):
+    def download_file(self, file_paths: str, local_path: str, zip_enabled: bool, chunked: bool = True):
         url = f"{self.uri}/api/commands"
 
         if isinstance(self.auth, OAuth2):
             with requests.get(url, headers=_get_headers(self.auth),
                               params={"file_paths": file_paths, "zip_enabled": zip_enabled}) as r:
-                _download_file(r, local_path)
+                _download_file(r, local_path, chunked)
                 _check_response(r, "download_file", (file_paths, local_path, zip_enabled))
         else:
             with requests.get(url, auth=self.auth.get_auth(),
                               params={"file_paths": file_paths, "zip_enabled": zip_enabled}) as r:
-                _download_file(r, local_path)
+                _download_file(r, local_path, chunked)
                 _check_response(r, "download_file", (file_paths, local_path, zip_enabled))
 
     def upload_file(self, dst_folder_path: str, filename: str, local_path: str):
